@@ -1,11 +1,19 @@
+import pathlib
+import uuid
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils.text import slugify
 
 
 class Crew(models.Model):
     first_name = models.CharField(max_length=50)
     last_name = models.CharField(max_length=50)
+
+    @property
+    def full_name(self):
+        return f"{self.first_name} {self.last_name}"
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
@@ -25,24 +33,37 @@ class Route(models.Model):
     distance = models.IntegerField()
 
     class Meta:
-        ordering = ['-distance']
+        ordering = ['distance']
+
+    @property
+    def cities_route(self):
+        return f"{self.source.closest_big_city} - {self.destination.closest_big_city}"
 
     def __str__(self):
         return f"{self.source.name} - {self.destination.name}"
 
 
 class AirplaneType(models.Model):
-    name = models.CharField(max_length=50)
+    name = models.CharField(max_length=50, unique=True)
 
     def __str__(self):
         return self.name
 
 
+def airplane_image_path(instance: "Airplane", filename: str) -> pathlib.Path:
+    filename = (
+        f"{slugify(instance.name)}-{uuid.uuid4()}"
+        + pathlib.Path(filename).suffix
+    )
+    return pathlib.Path("upload/airplane/") / pathlib.Path(filename)
+
+
 class Airplane(models.Model):
-    name = models.CharField(max_length=50)
+    name = models.CharField(max_length=50, null=False, blank=False)
     rows = models.IntegerField()
     seats_in_row = models.IntegerField()
     airplane_type = models.ForeignKey(AirplaneType, on_delete=models.CASCADE, related_name='airplanes')
+    image = models.ImageField(null=True, upload_to=airplane_image_path)
 
     class Meta:
         ordering = ['name']
@@ -58,15 +79,12 @@ class Airplane(models.Model):
 class Flight(models.Model):
     route = models.ForeignKey(Route, on_delete=models.CASCADE, related_name='flights')
     airplane = models.ForeignKey(Airplane, on_delete=models.CASCADE, related_name='flights')
+    crew = models.ManyToManyField(Crew, related_name='flights', null=True, blank=True)
     departure_time = models.DateTimeField()
     arrival_time = models.DateTimeField()
 
     class Meta:
         ordering = ['-departure_time']
-
-    @property
-    def cities_flight(self):
-        return f"{self.route.source.closest_big_city} - {self.route.destination.closest_big_city}"
 
     def __str__(self):
         return (f"{self.route.source.name} - {self.route.destination.name} "
@@ -82,7 +100,7 @@ class Order(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"Order created at {self.created_at.strftime('%Y-%m-%d %H:%M:%S')} by {self.user}"
+        return f"{self.created_at.strftime('%Y-%m-%d %H:%M:%S')} by {self.user}"
 
 
 class Ticket(models.Model):
