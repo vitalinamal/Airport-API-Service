@@ -3,11 +3,13 @@ from datetime import datetime
 from django.db.models import F, Count, Prefetch
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
-from rest_framework.response import Response
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
-from flight.permissions import IsAdminOrIfAuthenticatedReadOnly
-from flight.pagination import OrderPagination
+from rest_framework.response import Response
+
 from flight.models import Crew, Route, AirplaneType, Airplane, Flight, Order, Airport, Ticket
+from flight.pagination import OrderPagination
+from flight.permissions import IsAdminOrIfAuthenticatedReadOnly
+from flight.schemas import flight_schema
 from flight.serializers import (
     CrewSerializer,
     AirportSerializer,
@@ -116,6 +118,7 @@ class AirplaneViewSet(viewsets.ModelViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@flight_schema
 class FlightViewSet(viewsets.ModelViewSet):
     queryset = Flight.objects.all()
     serializer_class = FlightSerializer
