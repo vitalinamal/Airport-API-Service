@@ -7,7 +7,10 @@ from flight.models import (
     Airport,
     Route,
     AirplaneType,
-    Airplane, Flight, Order, Ticket
+    Airplane,
+    Flight,
+    Order,
+    Ticket,
 )
 
 
@@ -36,12 +39,14 @@ class AirportRetrieveSerializer(AirportSerializer):
         routes = []
 
         for route in routes_from:
-            routes.append({
-                "source": route.source.name,
-                "destination": route.destination.name,
-                "distance": route.distance,
-                "cities_route": route.cities_route
-            })
+            routes.append(
+                {
+                    "source": route.source.name,
+                    "destination": route.destination.name,
+                    "distance": route.distance,
+                    "cities_route": route.cities_route,
+                }
+            )
 
         return routes
 
@@ -88,7 +93,9 @@ class AirplaneSerializer(serializers.ModelSerializer):
 
 
 class AirplaneListSerializer(AirplaneSerializer):
-    airplane_type = serializers.SlugRelatedField(slug_field="name", queryset=AirplaneType.objects.all())
+    airplane_type = serializers.SlugRelatedField(
+        slug_field="name", queryset=AirplaneType.objects.all()
+    )
 
     class Meta:
         model = Airplane
@@ -118,7 +125,6 @@ class FlightListSerializer(FlightSerializer):
 
 
 class TicketSerializer(serializers.ModelSerializer):
-    flight = serializers.SlugRelatedField(read_only=True, slug_field="route.cities_route")
     def validate(self, attrs):
         data = super(TicketSerializer, self).validate(attrs=attrs)
         Ticket.validate_ticket(
@@ -148,15 +154,9 @@ class FlightRetrieveSerializer(FlightSerializer):
     route = RouteRetrieveSerializer()
     airplane = AirplaneRetrieveSerializer()
     crew = serializers.SlugRelatedField(
-        many=True,
-        read_only=True,
-        slug_field='full_name'
+        many=True, read_only=True, slug_field="full_name"
     )
-    taken_places = TicketSeatsSerializer(
-        source="tickets",
-        many=True,
-        read_only=True
-    )
+    taken_places = TicketSeatsSerializer(source="tickets", many=True, read_only=True)
 
     class Meta:
         model = Flight

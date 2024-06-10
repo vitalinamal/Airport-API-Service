@@ -28,16 +28,20 @@ class Airport(models.Model):
 
 
 class Route(models.Model):
-    source = models.ForeignKey(Airport, on_delete=models.CASCADE, related_name="routes_from")
-    destination = models.ForeignKey(Airport, on_delete=models.CASCADE, related_name='routes_to')
+    source = models.ForeignKey(
+        Airport, on_delete=models.CASCADE, related_name="routes_from"
+    )
+    destination = models.ForeignKey(
+        Airport, on_delete=models.CASCADE, related_name="routes_to"
+    )
     distance = models.IntegerField()
 
     class Meta:
-        ordering = ['distance']
+        ordering = ["distance"]
 
     @property
     def cities_route(self):
-        return f"{self.source.closest_big_city} - {self.destination.closest_big_city}"
+        return f"{self.source.closest_big_city}-{self.destination.closest_big_city}"
 
     def __str__(self):
         return f"{self.source.name} - {self.destination.name}"
@@ -52,8 +56,7 @@ class AirplaneType(models.Model):
 
 def airplane_image_path(instance: "Airplane", filename: str) -> pathlib.Path:
     filename = (
-        f"{slugify(instance.name)}-{uuid.uuid4()}"
-        + pathlib.Path(filename).suffix
+        f"{slugify(instance.name)}-{uuid.uuid4()}" + pathlib.Path(filename).suffix
     )
     return pathlib.Path("upload/airplane/") / pathlib.Path(filename)
 
@@ -62,11 +65,13 @@ class Airplane(models.Model):
     name = models.CharField(max_length=50, null=False, blank=False)
     rows = models.IntegerField()
     seats_in_row = models.IntegerField()
-    airplane_type = models.ForeignKey(AirplaneType, on_delete=models.CASCADE, related_name='airplanes')
+    airplane_type = models.ForeignKey(
+        AirplaneType, on_delete=models.CASCADE, related_name="airplanes"
+    )
     image = models.ImageField(null=True, upload_to=airplane_image_path)
 
     class Meta:
-        ordering = ['name']
+        ordering = ["name"]
 
     @property
     def capacity(self) -> int:
@@ -77,19 +82,23 @@ class Airplane(models.Model):
 
 
 class Flight(models.Model):
-    route = models.ForeignKey(Route, on_delete=models.CASCADE, related_name='flights')
-    airplane = models.ForeignKey(Airplane, on_delete=models.CASCADE, related_name='flights')
-    crew = models.ManyToManyField(Crew, related_name='flights', null=True, blank=True)
+    route = models.ForeignKey(Route, on_delete=models.CASCADE, related_name="flights")
+    airplane = models.ForeignKey(
+        Airplane, on_delete=models.CASCADE, related_name="flights"
+    )
+    crew = models.ManyToManyField(Crew, related_name="flights")
     departure_time = models.DateTimeField()
     arrival_time = models.DateTimeField()
 
     class Meta:
-        ordering = ['-departure_time']
+        ordering = ["-departure_time"]
 
     def __str__(self):
-        return (f"{self.route.source.name} - {self.route.destination.name} "
-                f"({self.departure_time.strftime('%Y-%m-%d %H:%M')} - "
-                f"{self.arrival_time.strftime('%Y-%m-%d %H:%M')})")
+        return (
+            f"{self.route.source.name} - {self.route.destination.name} "
+            f"({self.departure_time.strftime('%Y-%m-%d %H:%M')} - "
+            f"{self.arrival_time.strftime('%Y-%m-%d %H:%M')})"
+        )
 
 
 class Order(models.Model):
@@ -97,7 +106,7 @@ class Order(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
 
     class Meta:
-        ordering = ['-created_at']
+        ordering = ["-created_at"]
 
     def __str__(self):
         return f"{self.created_at.strftime('%Y-%m-%d %H:%M:%S')} by {self.user}"
@@ -106,8 +115,8 @@ class Order(models.Model):
 class Ticket(models.Model):
     row = models.IntegerField()
     seat = models.IntegerField()
-    flight = models.ForeignKey(Flight, on_delete=models.CASCADE, related_name='tickets')
-    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='tickets')
+    flight = models.ForeignKey(Flight, on_delete=models.CASCADE, related_name="tickets")
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="tickets")
 
     class Meta:
         unique_together = ("flight", "row", "seat")
@@ -127,9 +136,9 @@ class Ticket(models.Model):
                 raise error_to_raise(
                     {
                         ticket_attr_name: f"{ticket_attr_name} "
-                                          f"number must be in available range: "
-                                          f"(1, {airplane_attr_name}): "
-                                          f"(1, {count_attrs})"
+                        f"number must be in available range: "
+                        f"(1, {airplane_attr_name}): "
+                        f"(1, {count_attrs})"
                     }
                 )
 

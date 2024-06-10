@@ -1,12 +1,24 @@
 from datetime import datetime
 
+from django.core.cache import cache
 from django.db.models import F, Count, Prefetch
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAdminUser, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from flight.models import Crew, Route, AirplaneType, Airplane, Flight, Order, Airport, Ticket
+from flight.models import (
+    Crew,
+    Route,
+    AirplaneType,
+    Airplane,
+    Flight,
+    Order,
+    Airport,
+    Ticket,
+)
 from flight.pagination import OrderPagination
 from flight.permissions import IsAdminOrIfAuthenticatedReadOnly
 from flight.schemas import flight_schema
@@ -34,7 +46,7 @@ class CrewViewSet(viewsets.ModelViewSet):
     queryset = Crew.objects.all()
     serializer_class = CrewSerializer
     pagination_class = OrderPagination
-    permission_classes = (IsAdminUser,)
+    permission_classes = (IsAdminOrIfAuthenticatedReadOnly,)
 
 
 class AirportViewSet(viewsets.ModelViewSet):
@@ -44,15 +56,21 @@ class AirportViewSet(viewsets.ModelViewSet):
     permission_classes = (IsAdminOrIfAuthenticatedReadOnly,)
 
     def get_queryset(self):
-        if self.action == 'retrieve':
+        if self.action == "retrieve":
             return self.queryset.prefetch_related(
-                Prefetch('routes_from', queryset=Route.objects.select_related('source', 'destination')),
-                Prefetch('routes_to', queryset=Route.objects.select_related('source', 'destination'))
+                Prefetch(
+                    "routes_from",
+                    queryset=Route.objects.select_related("source", "destination"),
+                ),
+                Prefetch(
+                    "routes_to",
+                    queryset=Route.objects.select_related("source", "destination"),
+                ),
             )
         return self.queryset
 
     def get_serializer_class(self):
-        if self.action == 'retrieve':
+        if self.action == "retrieve":
             return AirportRetrieveSerializer
         return self.serializer_class
 
@@ -64,14 +82,14 @@ class RouteViewSet(viewsets.ModelViewSet):
     permission_classes = (IsAdminOrIfAuthenticatedReadOnly,)
 
     def get_queryset(self):
-        if self.action in ["list", 'retrieve']:
+        if self.action in ["list", "retrieve"]:
             return self.queryset.select_related("source", "destination")
         return self.queryset
 
     def get_serializer_class(self):
-        if self.action == 'list':
+        if self.action == "list":
             return RouteListSerializer
-        if self.action == 'retrieve':
+        if self.action == "retrieve":
             return RouteRetrieveSerializer
         return self.serializer_class
 
@@ -90,16 +108,16 @@ class AirplaneViewSet(viewsets.ModelViewSet):
     permission_classes = (IsAdminOrIfAuthenticatedReadOnly,)
 
     def get_queryset(self):
-        if self.action in ["list", 'retrieve']:
+        if self.action in ["list", "retrieve"]:
             return self.queryset.select_related("airplane_type")
         return self.queryset
 
     def get_serializer_class(self):
-        if self.action == 'list':
+        if self.action == "list":
             return AirplaneListSerializer
-        elif self.action == 'retrieve':
+        elif self.action == "retrieve":
             return AirplaneRetrieveSerializer
-        elif self.action == 'upload_image':
+        elif self.action == "upload_image":
             return AirplaneImageSerializer
         return self.serializer_class
 
@@ -138,8 +156,10 @@ class FlightViewSet(viewsets.ModelViewSet):
 
         if route:
             route_list = self._params_to_list(route)
-            queryset = queryset.filter(route__source__closest_big_city__iexact=route_list[0],
-                                       route__destination__closest_big_city__iexact=route_list[1])
+            queryset = queryset.filter(
+                route__source__closest_big_city__iexact=route_list[0],
+                route__destination__closest_big_city__iexact=route_list[1],
+            )
 
         if airport:
             queryset = queryset.filter(route__source__closest_big_city__iexact=airport)
@@ -149,21 +169,50 @@ class FlightViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(departure_time__date=date)
 
         if self.action in ["list", "retrieve"]:
-            queryset = queryset.select_related("airplane", "route__source", "route__destination").prefetch_related(
-                "crew").annotate(
-                tickets_available=(
-                        F("airplane__rows") * F("airplane__seats_in_row") - Count("tickets")
+            queryset = (
+                queryset.select_related(
+                    "airplane", "route__source", "route__destination"
+                )
+                .prefetch_related("crew")
+                .annotate(
+                    tickets_available=(
+                        F("airplane__rows") * F("airplane__seats_in_row")
+                        - Count("tickets")
+                    )
                 )
             )
 
         return queryset
 
     def get_serializer_class(self):
-        if self.action == 'list':
+        if self.action == "list":
             return FlightListSerializer
-        if self.action == 'retrieve':
+        if self.action == "retrieve":
             return FlightRetrieveSerializer
         return self.serializer_class
+
+    @method_decorator(cache_page(10 * 60))
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @method_decorator(cache_page(10 * 60))
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
+
+    def create(self, request, *args, **kwargs):
+        response = super().create(request, *args, **kwargs)
+        cache.clear()
+        return response
+
+    def update(self, request, *args, **kwargs):
+        response = super().update(request, *args, **kwargs)
+        cache.clear()
+        return response
+
+    def destroy(self, request, *args, **kwargs):
+        response = super().destroy(request, *args, **kwargs)
+        cache.clear()
+        return response
 
 
 class OrderViewSet(viewsets.ModelViewSet):
@@ -173,9 +222,15 @@ class OrderViewSet(viewsets.ModelViewSet):
     permission_classes = (IsAuthenticated,)
 
     def get_queryset(self):
-        ticket_prefetch = Prefetch('tickets', queryset=Ticket.objects.select_related('flight__route__source',
-                                                                                     'flight__route__destination'))
-        return self.queryset.filter(user=self.request.user).prefetch_related(ticket_prefetch)
+        ticket_prefetch = Prefetch(
+            "tickets",
+            queryset=Ticket.objects.select_related(
+                "flight__route__source", "flight__route__destination"
+            ),
+        )
+        return self.queryset.filter(user=self.request.user).prefetch_related(
+            ticket_prefetch
+        )
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -185,3 +240,9 @@ class OrderViewSet(viewsets.ModelViewSet):
             return OrderRetrieveSerializer
 
         return OrderSerializer
+
+    def update(self, request, *args, **kwargs):
+        return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def partial_update(self, request, *args, **kwargs):
+        return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
