@@ -12,10 +12,10 @@ class Crew(models.Model):
     last_name = models.CharField(max_length=50)
 
     @property
-    def full_name(self):
+    def full_name(self) -> str:
         return f"{self.first_name} {self.last_name}"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.first_name} {self.last_name}"
 
 
@@ -23,7 +23,7 @@ class Airport(models.Model):
     name = models.CharField(max_length=50)
     closest_big_city = models.CharField(max_length=50)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.name} ({self.closest_big_city})"
 
 
@@ -40,17 +40,17 @@ class Route(models.Model):
         ordering = ["distance"]
 
     @property
-    def cities_route(self):
+    def cities_route(self) -> int:
         return f"{self.source.closest_big_city}-{self.destination.closest_big_city}"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.source.name} - {self.destination.name}"
 
 
 class AirplaneType(models.Model):
     name = models.CharField(max_length=50, unique=True)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
 
@@ -77,7 +77,7 @@ class Airplane(models.Model):
     def capacity(self) -> int:
         return self.rows * self.seats_in_row
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.name} ({self.airplane_type.name})"
 
 
@@ -93,7 +93,7 @@ class Flight(models.Model):
     class Meta:
         ordering = ["-departure_time"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             f"{self.route.source.name} - {self.route.destination.name} "
             f"({self.departure_time.strftime('%Y-%m-%d %H:%M')} - "
@@ -108,7 +108,7 @@ class Order(models.Model):
     class Meta:
         ordering = ["-created_at"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.created_at.strftime('%Y-%m-%d %H:%M:%S')} by {self.user}"
 
 
@@ -122,11 +122,11 @@ class Ticket(models.Model):
         unique_together = ("flight", "row", "seat")
         ordering = ["row", "seat"]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"Ticket for {self.flight} - Row {self.row}, Seat {self.seat}"
 
     @staticmethod
-    def validate_ticket(row, seat, airplane, error_to_raise):
+    def validate_ticket(row, seat, airplane, error_to_raise) -> None:
         for ticket_attr_value, ticket_attr_name, airplane_attr_name in [
             (row, "row", "rows"),
             (seat, "seat", "seats_in_row"),
@@ -142,7 +142,7 @@ class Ticket(models.Model):
                     }
                 )
 
-    def clean(self):
+    def clean(self) -> None:
         Ticket.validate_ticket(
             self.row,
             self.seat,
@@ -156,7 +156,7 @@ class Ticket(models.Model):
         force_update=False,
         using=None,
         update_fields=None,
-    ):
+    ) -> None:
         self.full_clean()
         return super(Ticket, self).save(
             force_insert, force_update, using, update_fields

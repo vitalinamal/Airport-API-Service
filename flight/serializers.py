@@ -33,7 +33,7 @@ class AirportRetrieveSerializer(AirportSerializer):
         model = Airport
         fields = AirportSerializer.Meta.fields + ["routes"]
 
-    def get_routes(self, obj):
+    def get_routes(self, obj: Airport) -> list[dict[str, any]]:
         routes_from = obj.routes_from.all()
 
         routes = []
@@ -125,7 +125,7 @@ class FlightListSerializer(FlightSerializer):
 
 
 class TicketSerializer(serializers.ModelSerializer):
-    def validate(self, attrs):
+    def validate(self, attrs: dict) -> dict:
         data = super(TicketSerializer, self).validate(attrs=attrs)
         Ticket.validate_ticket(
             attrs["row"],
@@ -170,7 +170,7 @@ class OrderSerializer(serializers.ModelSerializer):
         model = Order
         fields = ("id", "tickets", "created_at")
 
-    def create(self, validated_data):
+    def create(self, validated_data: dict) -> Order:
         with transaction.atomic():
             tickets_data = validated_data.pop("tickets")
             order = Order.objects.create(**validated_data)

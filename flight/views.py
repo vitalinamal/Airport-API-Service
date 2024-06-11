@@ -1,13 +1,16 @@
 from datetime import datetime
+from typing import Type
 
 from django.core.cache import cache
-from django.db.models import F, Count, Prefetch
+from django.db.models import F, Count, Prefetch, QuerySet
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, serializers
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.serializers import Serializer
 
 from flight.models import (
     Crew,
@@ -55,7 +58,7 @@ class AirportViewSet(viewsets.ModelViewSet):
     pagination_class = OrderPagination
     permission_classes = (IsAdminOrIfAuthenticatedReadOnly,)
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[Airport]:
         if self.action == "retrieve":
             return self.queryset.prefetch_related(
                 Prefetch(
@@ -69,7 +72,7 @@ class AirportViewSet(viewsets.ModelViewSet):
             )
         return self.queryset
 
-    def get_serializer_class(self):
+    def get_serializer_class(self) -> Type[serializers.Serializer]:
         if self.action == "retrieve":
             return AirportRetrieveSerializer
         return self.serializer_class
@@ -81,12 +84,12 @@ class RouteViewSet(viewsets.ModelViewSet):
     pagination_class = OrderPagination
     permission_classes = (IsAdminOrIfAuthenticatedReadOnly,)
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[Route]:
         if self.action in ["list", "retrieve"]:
             return self.queryset.select_related("source", "destination")
         return self.queryset
 
-    def get_serializer_class(self):
+    def get_serializer_class(self) -> Type[serializers.Serializer]:
         if self.action == "list":
             return RouteListSerializer
         if self.action == "retrieve":
@@ -107,12 +110,12 @@ class AirplaneViewSet(viewsets.ModelViewSet):
     pagination_class = OrderPagination
     permission_classes = (IsAdminOrIfAuthenticatedReadOnly,)
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[Airplane]:
         if self.action in ["list", "retrieve"]:
             return self.queryset.select_related("airplane_type")
         return self.queryset
 
-    def get_serializer_class(self):
+    def get_serializer_class(self) -> Type[serializers.Serializer]:
         if self.action == "list":
             return AirplaneListSerializer
         elif self.action == "retrieve":
@@ -126,7 +129,7 @@ class AirplaneViewSet(viewsets.ModelViewSet):
         detail=True,
         url_path="upload-image",
     )
-    def upload_image(self, request, pk=None):
+    def upload_image(self, request: Request, pk: None) -> Response:
         airplane = self.get_object()
         serializer = self.get_serializer(airplane, data=request.data)
         if serializer.is_valid():
@@ -144,11 +147,11 @@ class FlightViewSet(viewsets.ModelViewSet):
     permission_classes = (IsAdminOrIfAuthenticatedReadOnly,)
 
     @staticmethod
-    def _params_to_list(qs):
+    def _params_to_list(qs) -> list[str]:
         """Converts a string to a list of parameters"""
         return qs.split("-")
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[Flight]:
         queryset = self.queryset
         route = self.request.query_params.get("route")
         airport = self.request.query_params.get("airport")
@@ -184,7 +187,7 @@ class FlightViewSet(viewsets.ModelViewSet):
 
         return queryset
 
-    def get_serializer_class(self):
+    def get_serializer_class(self) -> Type[serializers.Serializer]:
         if self.action == "list":
             return FlightListSerializer
         if self.action == "retrieve":
@@ -196,20 +199,20 @@ class FlightViewSet(viewsets.ModelViewSet):
         return super().list(request, *args, **kwargs)
 
     @method_decorator(cache_page(10 * 60))
-    def retrieve(self, request, *args, **kwargs):
+    def retrieve(self, request: Request, *args, **kwargs) -> Request:
         return super().retrieve(request, *args, **kwargs)
 
-    def create(self, request, *args, **kwargs):
+    def create(self, request: Request, *args, **kwargs) -> Request:
         response = super().create(request, *args, **kwargs)
         cache.clear()
         return response
 
-    def update(self, request, *args, **kwargs):
+    def update(self, request: Request, *args, **kwargs) -> Request:
         response = super().update(request, *args, **kwargs)
         cache.clear()
         return response
 
-    def destroy(self, request, *args, **kwargs):
+    def destroy(self, request: Request, *args, **kwargs) -> Request:
         response = super().destroy(request, *args, **kwargs)
         cache.clear()
         return response
@@ -221,7 +224,7 @@ class OrderViewSet(viewsets.ModelViewSet):
     pagination_class = OrderPagination
     permission_classes = (IsAuthenticated,)
 
-    def get_queryset(self):
+    def get_queryset(self) -> QuerySet[Order]:
         ticket_prefetch = Prefetch(
             "tickets",
             queryset=Ticket.objects.select_related(
@@ -232,17 +235,17 @@ class OrderViewSet(viewsets.ModelViewSet):
             ticket_prefetch
         )
 
-    def perform_create(self, serializer):
+    def perform_create(self, serializer: Serializer) -> None:
         serializer.save(user=self.request.user)
 
-    def get_serializer_class(self):
+    def get_serializer_class(self) -> Type[serializers.Serializer]:
         if self.action == "retrieve":
             return OrderRetrieveSerializer
 
         return OrderSerializer
 
-    def update(self, request, *args, **kwargs):
+    def update(self, request: Request, *args, **kwargs) -> Response:
         return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
-    def partial_update(self, request, *args, **kwargs):
+    def partial_update(self, request: Request, *args, **kwargs) -> Response:
         return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
