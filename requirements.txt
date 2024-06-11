@@ -1,9 +1,12 @@
 asgiref==3.8.1
 attrs==23.2.0
+black==24.4.2
 click==8.1.7
 colorama==0.4.6
+dj-database-url==2.2.0
 Django==5.0.6
 django-debug-toolbar==4.4.2
+django-environ==0.11.2
 django-redis==5.4.0
 django-rest-framework==0.1.0
 djangorestframework==3.15.1
@@ -20,8 +23,11 @@ platformdirs==4.2.2
 psycopg==3.1.19
 psycopg-binary==3.1.19
 PyJWT==2.8.0
+pymemcache==4.0.0
+python-decouple==3.8
 python-memcached==1.62
 PyYAML==6.0.1
+redis==4.6.0
 referencing==0.35.1
 rpds-py==0.18.1
 sqlparse==0.5.0
