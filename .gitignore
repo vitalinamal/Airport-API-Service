@@ -63,3 +63,4 @@ venv.bak/
 .pytype/
 cython_debug/
 poetry.toml
+db.sqlite3
